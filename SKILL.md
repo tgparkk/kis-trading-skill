@@ -1,6 +1,6 @@
 ---
 name: kis-trading
-description: "한국투자증권(KIS) Open API를 이용한 국내 주식 트레이딩. 잔고 조회, 시세 확인, 매수/매도 주문, 매매 내역, 시장 개황 등."
+description: "한국투자증권(KIS) Open API를 이용한 국내 주식 트레이딩. 잔고 조회, 시세 확인, 매수/매도 주문, 매매 내역, 시장 개황 등. | Korean stock trading via KIS (Korea Investment & Securities) Open API. Balance, quotes, buy/sell orders, trade history, market overview."
 metadata:
   {
     "openclaw":
@@ -15,6 +15,8 @@ metadata:
 # KIS 주식 트레이딩
 
 한국투자증권 Open API를 통한 국내 주식 매매 스킬.
+
+Korean stock trading skill using KIS (Korea Investment & Securities) Open API. Supports balance inquiry, real-time quotes, buy/sell orders, trade history, and market overview for stocks listed on KRX (KOSPI/KOSDAQ).
 
 ## 설정
 
