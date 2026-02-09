@@ -69,7 +69,7 @@ def _load_token() -> Optional[str]:
     try:
         with open(_TOKEN_FILE) as f:
             data = json.load(f)
-        if data.get('expired') and data['expired'] > datetime.now().strftime('%Y-%m-%d %H:%M:%S'):
+        if data.get('expired') and datetime.strptime(data['expired'], '%Y-%m-%d %H:%M:%S') > datetime.now():
             return data['token']
     except:
         pass
