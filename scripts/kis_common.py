@@ -54,10 +54,14 @@ _TOKEN_FILE = os.path.expanduser('~/.kis-trading/token.json')
 
 
 def _save_token(token: str, expired: str):
-    """토큰 파일 저장"""
+    """토큰 파일 저장 (권한 600)"""
     os.makedirs(os.path.dirname(_TOKEN_FILE), exist_ok=True)
     with open(_TOKEN_FILE, 'w') as f:
         json.dump({'token': token, 'expired': expired}, f)
+    try:
+        os.chmod(_TOKEN_FILE, 0o600)
+    except OSError:
+        pass
 
 
 def _load_token() -> Optional[str]:
@@ -189,6 +193,16 @@ def fmt_rate(n) -> str:
 def fmt_price(n) -> str:
     """가격 포맷"""
     return fmt_num(n, '원')
+
+
+def get_stock_name_from_api(cfg: dict, token: str, code: str) -> str:
+    """종목명 조회 (search-stock-info API)"""
+    params = {"PRDT_TYPE_CD": "300", "PDNO": code}
+    data = api_get(cfg, token, '/uapi/domestic-stock/v1/quotations/search-stock-info', 'CTPF1002R', params)
+    if data:
+        out = data.get('output', {})
+        return out.get('prdt_abrv_name', out.get('prdt_name', code))
+    return code
 
 
 def add_common_args(parser):

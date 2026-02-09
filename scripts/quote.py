@@ -6,7 +6,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args
+from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args, get_stock_name_from_api
 
 # 주요 종목 이름→코드 매핑 (자주 검색하는 종목)
 STOCK_NAME_MAP = {
@@ -27,6 +27,15 @@ STOCK_NAME_MAP = {
     'HLB': '028300', '에코프로': '086520', '에코프로비엠': '247540',
     '포스코퓨처엠': '003670', '알테오젠': '196170',
 }
+
+
+# 코드→이름 역매핑
+STOCK_CODE_MAP = {v: k for k, v in STOCK_NAME_MAP.items()}
+
+
+def get_stock_name_by_code(code: str) -> Optional[str]:
+    """종목코드→이름 변환 (내장 맵 사용)"""
+    return STOCK_CODE_MAP.get(code)
 
 
 def get_quote(cfg: dict, token: str, code: str) -> Optional[dict]:
@@ -92,7 +101,7 @@ def main():
         sys.exit(1)
 
     out = data.get('output', {})
-    name = out.get('prdt_name', out.get('hts_kor_isnm', code))
+    name = get_stock_name_by_code(code) or get_stock_name_from_api(cfg, token, code)
     cur_price = safe_int(out.get('stck_prpr'))
     change = safe_int(out.get('prdy_vrss'))
     change_rate = safe_float(out.get('prdy_ctrt'))

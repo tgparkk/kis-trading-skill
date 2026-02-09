@@ -6,17 +6,12 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_post, api_get, fmt_price, fmt_num, add_common_args
+from kis_common import load_config, get_token, api_post, api_get, fmt_price, fmt_num, add_common_args, get_stock_name_from_api
 
 
 def get_stock_name(cfg: dict, token: str, code: str) -> str:
     """종목명 조회"""
-    params = {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": code}
-    data = api_get(cfg, token, '/uapi/domestic-stock/v1/quotations/inquire-price', 'FHKST01010100', params)
-    if data:
-        out = data.get('output', {})
-        return out.get('prdt_name', out.get('hts_kor_isnm', code))
-    return code
+    return get_stock_name_from_api(cfg, token, code)
 
 
 def round_to_tick(price: int) -> int:
@@ -70,6 +65,10 @@ def main():
     parser.add_argument('--market', action='store_true', help='시장가 주문')
     parser.add_argument('--dry-run', action='store_true', help='주문 내용만 확인 (실제 주문 안함)')
     args = parser.parse_args()
+
+    if args.qty <= 0:
+        print("❌ 주문 수량은 1 이상이어야 합니다.")
+        sys.exit(1)
 
     if not args.market and args.price <= 0:
         print("❌ 지정가 주문 시 --price를 입력하거나, --market으로 시장가 주문하세요.")
