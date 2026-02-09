@@ -112,9 +112,11 @@ def _wait_rate_limit():
     _last_api_call_time = time.time()
 
 
-def api_get(cfg: dict, token: str, path: str, tr_id: str, params: dict) -> Optional[dict]:
-    """GET API 호출"""
+def api_get(cfg: dict, token: str, path: str, tr_id: str, params: dict,
+            _retried: bool = False) -> Optional[dict]:
+    """GET API 호출 (토큰 만료 시 자동 재발급)"""
     _wait_rate_limit()
+    tr_id = resolve_tr_id(cfg, tr_id)
     url = f"{cfg['base_url']}{path}"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
@@ -129,15 +131,23 @@ def api_get(cfg: dict, token: str, path: str, tr_id: str, params: dict) -> Optio
         print(f"❌ API 오류: {resp.status_code} {resp.text[:200]}")
         return None
     data = resp.json()
+    # 토큰 만료 감지 → 재발급 후 재시도
+    if data.get('msg_cd') in ('EGW00123', 'EGW00121') and not _retried:
+        new_token = _force_refresh_token(cfg)
+        return api_get(cfg, new_token, path, tr_id, params, _retried=True)
     if data.get('rt_cd') != '0':
         print(f"❌ API 오류: [{data.get('msg_cd')}] {data.get('msg1')}")
         return None
+    # 연속조회 키를 data에 포함
+    data['_tr_cont'] = resp.headers.get('tr_cont', '')
     return data
 
 
-def api_post(cfg: dict, token: str, path: str, tr_id: str, body: dict, use_hashkey: bool = True) -> Optional[dict]:
-    """POST API 호출"""
+def api_post(cfg: dict, token: str, path: str, tr_id: str, body: dict,
+             use_hashkey: bool = True, _retried: bool = False) -> Optional[dict]:
+    """POST API 호출 (토큰 만료 시 자동 재발급)"""
     _wait_rate_limit()
+    tr_id = resolve_tr_id(cfg, tr_id)
     url = f"{cfg['base_url']}{path}"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
@@ -165,10 +175,59 @@ def api_post(cfg: dict, token: str, path: str, tr_id: str, body: dict, use_hashk
         print(f"❌ API 오류: {resp.status_code} {resp.text[:200]}")
         return None
     data = resp.json()
+    # 토큰 만료 감지 → 재발급 후 재시도
+    if data.get('msg_cd') in ('EGW00123', 'EGW00121') and not _retried:
+        new_token = _force_refresh_token(cfg)
+        return api_post(cfg, new_token, path, tr_id, body, use_hashkey, _retried=True)
     if data.get('rt_cd') != '0':
         print(f"❌ API 오류: [{data.get('msg_cd')}] {data.get('msg1')}")
         return None
     return data
+
+
+def safe_int(v, default=0):
+    """문자열→int 변환 (실패 시 default)"""
+    try:
+        return int(str(v).replace(',', ''))
+    except:
+        return default
+
+
+def safe_float(v, default=0.0):
+    """문자열→float 변환 (실패 시 default)"""
+    try:
+        return float(str(v).replace(',', ''))
+    except:
+        return default
+
+
+# 모의투자 TR ID 매핑 (실전 → 모의)
+VIRTUAL_TR_ID_MAP = {
+    # 주문
+    'TTTC0012U': 'VTTC0802U',  # 매수
+    'TTTC0011U': 'VTTC0801U',  # 매도
+    # 잔고/보유종목 조회
+    'TTTC8434R': 'VTTC8434R',
+    # 일별 주문체결 조회
+    'TTTC0081R': 'VTTC0081R',  # 모의투자 TR ID 동일 패턴
+}
+
+
+def resolve_tr_id(cfg: dict, tr_id: str) -> str:
+    """모의투자 환경이면 TR ID를 모의투자용으로 변환"""
+    if 'openapivts' in cfg.get('base_url', ''):
+        return VIRTUAL_TR_ID_MAP.get(tr_id, tr_id)
+    return tr_id
+
+
+def _force_refresh_token(cfg: dict) -> str:
+    """토큰 강제 재발급"""
+    # 캐시 파일 삭제
+    try:
+        os.remove(_TOKEN_FILE)
+    except OSError:
+        pass
+    return get_token(cfg)
 
 
 def fmt_num(n, suffix='') -> str:

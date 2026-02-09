@@ -7,35 +7,49 @@ import os
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_get, fmt_price, fmt_num, add_common_args
+from kis_common import load_config, get_token, api_get, fmt_price, fmt_num, add_common_args, safe_int
 
 
-def safe_int(v, default=0):
-    try:
-        return int(str(v).replace(',', ''))
-    except:
-        return default
+def get_daily_orders(cfg: dict, token: str, start: str, end: str) -> list:
+    """일별 주문체결 조회 (페이지네이션 포함)"""
+    all_orders = []
+    ctx_fk = ""
+    ctx_nk = ""
 
+    while True:
+        params = {
+            "CANO": cfg['account_no'],
+            "ACNT_PRDT_CD": cfg['product_code'],
+            "INQR_STRT_DT": start,
+            "INQR_END_DT": end,
+            "SLL_BUY_DVSN_CD": "00",
+            "INQR_DVSN": "01",
+            "PDNO": "",
+            "CCLD_DVSN": "00",
+            "ORD_GNO_BRNO": "",
+            "ODNO": "",
+            "INQR_DVSN_3": "00",
+            "INQR_DVSN_1": "",
+            "CTX_AREA_FK100": ctx_fk,
+            "CTX_AREA_NK100": ctx_nk,
+        }
+        data = api_get(cfg, token, '/uapi/domestic-stock/v1/trading/inquire-daily-ccld', 'TTTC0081R', params)
+        if not data:
+            break
 
-def get_daily_orders(cfg: dict, token: str, start: str, end: str) -> Optional[dict]:
-    """일별 주문체결 조회"""
-    params = {
-        "CANO": cfg['account_no'],
-        "ACNT_PRDT_CD": cfg['product_code'],
-        "INQR_STRT_DT": start,
-        "INQR_END_DT": end,
-        "SLL_BUY_DVSN_CD": "00",  # 전체
-        "INQR_DVSN": "01",        # 정순
-        "PDNO": "",
-        "CCLD_DVSN": "00",        # 전체 (01:체결, 02:미체결)
-        "ORD_GNO_BRNO": "",
-        "ODNO": "",
-        "INQR_DVSN_3": "00",
-        "INQR_DVSN_1": "",
-        "CTX_AREA_FK100": "",
-        "CTX_AREA_NK100": "",
-    }
-    return api_get(cfg, token, '/uapi/domestic-stock/v1/trading/inquire-daily-ccld', 'TTTC0081R', params)
+        items = data.get('output1', [])
+        all_orders.extend(items)
+
+        tr_cont = data.get('_tr_cont', '')
+        if tr_cont in ('F', 'M') and items:
+            ctx_fk = data.get('ctx_area_fk100', data.get('CTX_AREA_FK100', ''))
+            ctx_nk = data.get('ctx_area_nk100', data.get('CTX_AREA_NK100', ''))
+            if not ctx_fk and not ctx_nk:
+                break
+        else:
+            break
+
+    return all_orders
 
 
 def main():
@@ -48,12 +62,8 @@ def main():
 
     cfg = load_config(args.config)
     token = get_token(cfg)
-    data = get_daily_orders(cfg, token, args.start, args.end)
+    orders = get_daily_orders(cfg, token, args.start, args.end)
 
-    if not data:
-        sys.exit(1)
-
-    orders = data.get('output1', [])
     if not orders:
         print(f"📋 매매 내역 없음 ({args.start} ~ {args.end})")
         return

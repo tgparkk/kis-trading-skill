@@ -6,21 +6,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args
-
-
-def safe_int(v, default=0):
-    try:
-        return int(str(v).replace(',', ''))
-    except:
-        return default
-
-
-def safe_float(v, default=0.0):
-    try:
-        return float(str(v).replace(',', ''))
-    except:
-        return default
+from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args, safe_int, safe_float
 
 
 def get_index(cfg: dict, token: str, index_code: str) -> Optional[dict]:

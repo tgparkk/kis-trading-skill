@@ -6,7 +6,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, add_common_args
+from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, add_common_args, safe_int
 
 
 def get_balance(cfg: dict, token: str) -> Optional[dict]:

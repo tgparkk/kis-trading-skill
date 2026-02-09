@@ -6,39 +6,47 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args
+from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args, safe_int, safe_float
 
 
-def get_holdings(cfg: dict, token: str) -> Optional[dict]:
-    """보유 종목 조회"""
-    params = {
-        "CANO": cfg['account_no'],
-        "ACNT_PRDT_CD": cfg['product_code'],
-        "AFHR_FLPR_YN": "N",
-        "OFL_YN": "",
-        "INQR_DVSN": "00",
-        "UNPR_DVSN": "01",
-        "FUND_STTL_ICLD_YN": "N",
-        "FNCG_AMT_AUTO_RDPT_YN": "N",
-        "PRCS_DVSN": "00",
-        "CTX_AREA_FK100": "",
-        "CTX_AREA_NK100": "",
-    }
-    return api_get(cfg, token, '/uapi/domestic-stock/v1/trading/inquire-balance', 'TTTC8434R', params)
+def get_holdings(cfg: dict, token: str) -> list:
+    """보유 종목 조회 (페이지네이션 포함)"""
+    all_holdings = []
+    ctx_fk = ""
+    ctx_nk = ""
 
+    while True:
+        params = {
+            "CANO": cfg['account_no'],
+            "ACNT_PRDT_CD": cfg['product_code'],
+            "AFHR_FLPR_YN": "N",
+            "OFL_YN": "",
+            "INQR_DVSN": "00",
+            "UNPR_DVSN": "01",
+            "FUND_STTL_ICLD_YN": "N",
+            "FNCG_AMT_AUTO_RDPT_YN": "N",
+            "PRCS_DVSN": "00",
+            "CTX_AREA_FK100": ctx_fk,
+            "CTX_AREA_NK100": ctx_nk,
+        }
+        data = api_get(cfg, token, '/uapi/domestic-stock/v1/trading/inquire-balance', 'TTTC8434R', params)
+        if not data:
+            break
 
-def safe_int(v, default=0):
-    try:
-        return int(str(v).replace(',', ''))
-    except:
-        return default
+        items = data.get('output1', [])
+        all_holdings.extend(items)
 
+        # 연속조회 확인 (F/M = 다음 페이지 있음)
+        tr_cont = data.get('_tr_cont', '')
+        if tr_cont in ('F', 'M') and items:
+            ctx_fk = data.get('ctx_area_fk100', data.get('CTX_AREA_FK100', ''))
+            ctx_nk = data.get('ctx_area_nk100', data.get('CTX_AREA_NK100', ''))
+            if not ctx_fk and not ctx_nk:
+                break
+        else:
+            break
 
-def safe_float(v, default=0.0):
-    try:
-        return float(str(v).replace(',', ''))
-    except:
-        return default
+    return all_holdings, data
 
 
 def main():
@@ -48,13 +56,12 @@ def main():
 
     cfg = load_config(args.config)
     token = get_token(cfg)
-    data = get_holdings(cfg, token)
+    holdings_list, last_data = get_holdings(cfg, token)
 
-    if not data:
+    if last_data is None:
         sys.exit(1)
 
-    holdings = data.get('output1', [])
-    active = [h for h in holdings if safe_int(h.get('hldg_qty')) > 0]
+    active = [h for h in holdings_list if safe_int(h.get('hldg_qty')) > 0]
 
     if not active:
         print("📊 보유 종목 없음")

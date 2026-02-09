@@ -6,7 +6,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_post, api_get, fmt_price, fmt_num, add_common_args, get_stock_name_from_api
+from kis_common import load_config, get_token, api_post, api_get, fmt_price, fmt_num, add_common_args, get_stock_name_from_api, resolve_tr_id
 
 
 def get_stock_name(cfg: dict, token: str, code: str) -> str:
@@ -29,14 +29,8 @@ def round_to_tick(price: int) -> int:
 def place_order(cfg: dict, token: str, side: str, code: str, qty: int,
                 price: int = 0, market: bool = False) -> Optional[dict]:
     """주문 실행"""
-    if side == 'buy':
-        tr_id = "TTTC0012U"  # 매수 (모의: VTTC0802U)
-    else:
-        tr_id = "TTTC0011U"  # 매도 (모의: VTTC0801U)
-
-    # 모의투자 TR ID
-    if 'openapivts' in cfg['base_url']:
-        tr_id = "VTTC0802U" if side == 'buy' else "VTTC0801U"
+    # TR ID는 api_post에서 resolve_tr_id로 자동 변환
+    tr_id = "TTTC0012U" if side == 'buy' else "TTTC0011U"
 
     ord_dvsn = "01" if market else "00"  # 01:시장가, 00:지정가
 

@@ -6,7 +6,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(__file__))
-from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args, get_stock_name_from_api
+from kis_common import load_config, get_token, api_get, fmt_price, fmt_rate, fmt_num, add_common_args, get_stock_name_from_api, safe_int, safe_float
 
 # 주요 종목 이름→코드 매핑 (자주 검색하는 종목)
 STOCK_NAME_MAP = {
@@ -57,20 +57,6 @@ def resolve_code(name: str) -> Optional[str]:
         if name in k or k in name:
             return v
     return None
-
-
-def safe_int(v, default=0):
-    try:
-        return int(str(v).replace(',', ''))
-    except:
-        return default
-
-
-def safe_float(v, default=0.0):
-    try:
-        return float(str(v).replace(',', ''))
-    except:
-        return default
 
 
 def main():
